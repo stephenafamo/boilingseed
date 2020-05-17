@@ -42,8 +42,6 @@ func main() {
 	wipe := flag.Bool("wipe", false, "Delete the output folder (rm -rf) before generation to ensure sanity")
 	flag.Parse()
 
-	// cmd := exec.Command("sqlboiler", "-h", os.Args[1])
-
 	args := []string{
 		os.Args[1],
 		"--templates", dir,
@@ -66,8 +64,6 @@ func main() {
 
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	// fmt.Println(cmd.String())
 
 	if err := cmd.Run(); err != nil {
 		panic(err)
