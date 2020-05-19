@@ -4,3 +4,9 @@ type filled struct {
 	{{$alias.UpPlural}} bool
 	{{end -}}
 }
+
+func (f *filled) copy() *filled {
+	copy := &filled{}
+	*copy = *f
+	return copy
+}

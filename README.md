@@ -21,8 +21,8 @@ In the configuration, you can duplicate your main sqlboiler config.
 
 ```toml
 [imports.all]
-  standard = ['"fmt"']
-  third_party = ['models "module/path/to/your/models"', '"github.com/volatiletech/sqlboiler/v4/boil"']
+  standard = ['"fmt"', '"bytes"']
+  third_party = ['"gitlab.com/stephenafamo/memelify/models"', '"github.com/volatiletech/sqlboiler/v4/boil"', '"github.com/volatiletech/randomize"
 ```
 
 Next, generate the seeds with:
@@ -81,19 +81,58 @@ ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pilots_fkey FOREIGN KE
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_languages_fkey FOREIGN KEY (language_id) REFERENCES languages(id);
 ```
 
-The generated package will define the following functions:
+You can seed the entire database like this:
 
 ```go
+package main
+
+import (
+    "context"
+    "database/sql"
+
+    "path/to/package/seed"
+)
+
+func main() {
+    ctx := context.Background()
+    db := getDB()
+    seed.Pilot(ctx, db)
+}
+```
+
+## Controlling seeding
+
+The generated package will define the following variables. They can all be overwritten to control seeding:
+
+```go
+var JetsPerPilot int = 1
+var LanguagesPerPilot int = 1
+var PilotsPerLanguage int = 1
+
 var RandomPilot func() *models.Pilot
 var RandomJet func() *models.Jet
 var RandomLanguage func() *models.Language
 
-var JetsPerPilot int = 1
-var LanguagesPerPilot int = 1
-var PilotsPerLanguage int = 1
+var AddJetssToPilot func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error
+var AddLanguagesToPilot func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error
+var AddPilotsToLanguage func(ctx context.Context, exec boil.ContextExecutor, o *models.Language, amount int) error
 ```
 
-The `RandomXXX` functions have to be written by you. A single function that randomly generates a model.
+### `xxxPerXXX`
+
+The `xxxPerXXX` variables are used to control how many `to-many` relationships are added. For example, if you seed a single pliot, it will auto-seed jets related to that pilot. By default, that is 1, but you can change it like this:
+
+```go
+seed.JetsPerPilot = 3
+seed.LanguagesPerPilot = 4
+seed.PilotsPerLanguage = 5
+```
+
+### `RandomXXX`
+
+The package has default `RandomXXX` functions that use `github.com/volatiletech/randomize`. However, for better control you can set custom `RandomXXX` functions. A single function that randomly generates a model.
+
+The `RandomXXX` functions do not need to add any relationships to the models.
 
 ```go
 seed.RandomPilot = func()*models.Pilot {
@@ -115,13 +154,29 @@ seed.RandomLanguage = func()*models.Language {
 }
 ```
 
-The `xxxPerXXX` variables are used to control how many `to-many` relationships are added. For example, if you seed a single pliot, it will auto-seed jets related to that pilot. By default, that is 1, but you can change it like this:
+### `AddXXXToXXX`
+
+These are only generate for `ToMany` relationships.
+
+The package has default `AddXXXToXXX` functions that work very well, but in custom cases, we may want to control how the relationships are added.
+
+NOTE: The model passed to this function would have already been inserted in the DB. And the function should INSERT the related models too.
 
 ```go
-seed.JetsPerPilot = 3
-seed.LanguagesPerPilot = 4
-seed.PilotsPerLanguage = 5
+seed.AddJetssToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
+    // Create and insert the related jets
+}
+
+seed.AddLanguagesToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
+    // Create and insert the related languages
+}
+
+seed.AddPilotsToLanguage = func(ctx context.Context, exec boil.ContextExecutor, o *models.Language, amount int) error {
+    // Create and insert the related pilots
+}
 ```
+
+-----
 
 Once all that is set we can seed our database by calling:
 
@@ -154,29 +209,35 @@ func main() {
 	}
 
     defer db.Close()
-    
-    seed.RandomPilot = func()*models.Pilot {
-        // Build a random pilot
-        // Do not worry about relationships those are auto generaeted by the seeder
-        // check out github.com/Pallinder/go-randomdata
-    }
-
-    seed.RandomJet = func()*models.Jet {
-        // Build a random jet
-        // Do not worry about relationships those are auto generaeted by the seeder
-        // check out github.com/Pallinder/go-randomdata
-    }
-
-    seed.RandomLanguage = func()*models.Language {
-        // Build a random language
-        // Do not worry about relationships those are auto generaeted by the seeder
-        // check out github.com/Pallinder/go-randomdata
-    }
-
 
     seed.JetsPerPilot = 3
     seed.LanguagesPerPilot = 4
     seed.PilotsPerLanguage = 5
+    
+    seed.RandomPilot = func()*models.Pilot {
+        // Build a random pilot
+    }
+
+    seed.RandomJet = func()*models.Jet {
+        // Build a random jet
+    }
+
+    seed.RandomLanguage = func()*models.Language {
+        // Build a random language
+    }
+
+    seed.AddJetssToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
+        // Create and insert the related jets
+    }
+
+    seed.AddLanguagesToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
+        // Create and insert the related languages
+    }
+
+    seed.AddPilotsToLanguage = func(ctx context.Context, exec boil.ContextExecutor, o *models.Language, amount int) error {
+        // Create and insert the related pilots
+    }
+
 
     ctx := context.Background()
 
