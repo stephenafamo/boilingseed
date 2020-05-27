@@ -21,8 +21,12 @@ In the configuration, you can duplicate your main sqlboiler config.
 
 ```toml
 [imports.all]
-  standard = ['"fmt"', '"bytes"']
-  third_party = ['"gitlab.com/stephenafamo/memelify/models"', '"github.com/volatiletech/sqlboiler/v4/boil"', '"github.com/volatiletech/randomize"
+  standard = ['"fmt"', '"bytes"', '"math"']
+  third_party = ['"github.com/stephenafamo/boilingseed/models"', '"github.com/volatiletech/sqlboiler/v4/boil"', '"github.com/volatiletech/sqlboiler/v4/queries"', '"github.com/volatiletech/randomize"']
+
+[imports.singleton."boilingseed_main"]
+  standard = ['"fmt"', '"sync"', '"time"', '"context"', '"math/rand"']
+  third_party = ['"github.com/stephenafamo/boilingseed/models"', '"github.com/volatiletech/sqlboiler/v4/boil"']
 ```
 
 Next, generate the seeds with:
@@ -79,6 +83,18 @@ CREATE TABLE pilot_languages (
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pkey PRIMARY KEY (pilot_id, language_id);
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pilots_fkey FOREIGN KEY (pilot_id) REFERENCES pilots(id);
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_languages_fkey FOREIGN KEY (language_id) REFERENCES languages(id);
+
+-- Join table
+CREATE TABLE pilot_languages_2 (
+  pilot_id integer NOT NULL,
+  language_id integer NOT NULL,
+  name text NOT NULL
+);
+
+-- Composite primary key
+ALTER TABLE pilot_languages_2 ADD CONSTRAINT pilot_language_2_pkey PRIMARY KEY (pilot_id, language_id);
+ALTER TABLE pilot_languages_2 ADD CONSTRAINT pilot_language_2_pilots_fkey FOREIGN KEY (pilot_id) REFERENCES pilots(id);
+ALTER TABLE pilot_languages_2 ADD CONSTRAINT pilot_language_2_languages_fkey FOREIGN KEY (language_id) REFERENCES languages(id);
 ```
 
 You can seed the entire database like this:
@@ -96,7 +112,7 @@ import (
 func main() {
     ctx := context.Background()
     db := getDB()
-    seed.Pilot(ctx, db)
+    seed.Run(ctx, db)
 }
 ```
 
@@ -105,27 +121,51 @@ func main() {
 The generated package will define the following variables. They can all be overwritten to control seeding:
 
 ```go
+
+var MinJetsToSeed int = 1
+var MinLanguagesToSeed int = 1
+var MinPilotsToSeed int = 1
+
 var JetsPerPilot int = 1
-var LanguagesPerPilot int = 1
-var PilotsPerLanguage int = 1
+
+var MinRelsPerPilotLanguages = 1
+
+// Number of times to retry getting a unique relationship in many-to-many relationships
+var Retries = 3
 
 var RandomPilot func() *models.Pilot
 var RandomJet func() *models.Jet
 var RandomLanguage func() *models.Language
+```
 
-var AddJetssToPilot func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error
-var AddLanguagesToPilot func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error
-var AddPilotsToLanguage func(ctx context.Context, exec boil.ContextExecutor, o *models.Language, amount int) error
+### `MinXXXToSeed`
+
+The `MinXXXToSeed` variables are used to control how many of each model to seed.
+
+**NOTE:** The final amount seeded could be more than this because of other variables. For example, if **MinJetsToSeed** and **MinPilotsToSeed** are set to `3`, but **JetsPerPilot** is set to `5`, then the final number of Jets seeded will be 15 because each of the 3 pilots need 5 jets.
+
+```go
+seed.MinJetsToSeed = 5
+seed.MinLanguagesToSeed = 4
+seed.MinPilotsToSeed = 3
 ```
 
 ### `xxxPerXXX`
 
-The `xxxPerXXX` variables are used to control how many `to-many` relationships are added. For example, if you seed a single pliot, it will auto-seed jets related to that pilot. By default, that is 1, but you can change it like this:
+The `xxxPerXXX` variables are used to control how many `one-to-many` relationships are added. For example, if you seed a single pliot, it will auto-seed jets related to that pilot. By default, that is 1, but you can change it like this:
 
 ```go
-seed.JetsPerPilot = 3
-seed.LanguagesPerPilot = 4
-seed.PilotsPerLanguage = 5
+seed.JetsPerPilot = 2
+```
+
+### `MinRelsPerXXX`
+
+The `MinRelsPerXXX` variables are used to control how many `many-to-many` relationships are added. In this example, it will **try** to give each Pilot *at least* 3 Languages and each Language *at least* 3 pilots.
+
+Naturally, if there are more pilots than languages, each language will likely have more than 3 pilots.
+
+```go
+seed.MinRelsPerPilotLanguages = 3
 ```
 
 ### `RandomXXX`
@@ -151,104 +191,6 @@ seed.RandomLanguage = func()*models.Language {
     // Build a random language
     // Do not worry about relationships those are auto generaeted by the seeder
     // check out github.com/Pallinder/go-randomdata
-}
-```
-
-### `AddXXXToXXX`
-
-These are only generate for `ToMany` relationships.
-
-The package has default `AddXXXToXXX` functions that work very well, but in custom cases, we may want to control how the relationships are added.
-
-NOTE: The model passed to this function would have already been inserted in the DB. And the function should INSERT the related models too.
-
-```go
-seed.AddJetssToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
-    // Create and insert the related jets
-}
-
-seed.AddLanguagesToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
-    // Create and insert the related languages
-}
-
-seed.AddPilotsToLanguage = func(ctx context.Context, exec boil.ContextExecutor, o *models.Language, amount int) error {
-    // Create and insert the related pilots
-}
-```
-
------
-
-Once all that is set we can seed our database by calling:
-
-```go
-seed.Pilot(ctx, db)
-```
-
-Note: Because relationships are auto-seeded, by seeding the pilot, we will seed 3 Jets and 4 languages.
-
-Full code:
-
-```go
-package main
-
-import (
-    "context"
-    "database/sql"
-
-	_ "github.com/lib/pq" // postgres driver
-
-    "github.com/my/module/models"
-    "github.com/my/module/seed"
-)
-
-func main() {
-
-	db, err := sql.Open("postgres", getDBInfo())
-	if err != nil {
-		panic(err)
-	}
-
-    defer db.Close()
-
-    seed.JetsPerPilot = 3
-    seed.LanguagesPerPilot = 4
-    seed.PilotsPerLanguage = 5
-    
-    seed.RandomPilot = func()*models.Pilot {
-        // Build a random pilot
-    }
-
-    seed.RandomJet = func()*models.Jet {
-        // Build a random jet
-    }
-
-    seed.RandomLanguage = func()*models.Language {
-        // Build a random language
-    }
-
-    seed.AddJetssToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
-        // Create and insert the related jets
-    }
-
-    seed.AddLanguagesToPilot = func(ctx context.Context, exec boil.ContextExecutor, o *models.Pilot, amount int) error {
-        // Create and insert the related languages
-    }
-
-    seed.AddPilotsToLanguage = func(ctx context.Context, exec boil.ContextExecutor, o *models.Language, amount int) error {
-        // Create and insert the related pilots
-    }
-
-
-    ctx := context.Background()
-
-    err := seed.Pilot(ctx, db)
-    if err != nil {
-        panic(err)
-    }
-}
-
-func getDBInfo() string {
-    // Get Postgres DB connection string
 }
 ```
 

@@ -1,9 +1,11 @@
 {{ $alias := .Aliases.Table .Table.Name -}}
 {{- $orig_tbl_name := .Table.Name -}}
 
-type rel{{$alias.UpSingular}}InsertOneFunc = func({{if not .NoContext}}ctx context.Context, {{end}}exec boil.ContextExecutor, insert bool, related *models.{{$alias.UpSingular}}) error
-
-type rel{{$alias.UpSingular}}InsertManyFunc = func({{if not .NoContext}}ctx context.Context, {{end}}exec boil.ContextExecutor, insert bool, related ...*models.{{$alias.UpSingular}}) error
+var (
+	{{$alias.DownSingular}}ColumnsWithDefault    = []string{{"{"}}{{.Table.Columns | filterColumnsByDefault true | columnNames | stringMap .StringFuncs.quoteWrap | join ","}}{{"}"}}
+	{{$alias.DownSingular}}DBTypes = map[string]string{{"{"}}{{range $i, $col := .Table.Columns -}}{{- if ne $i 0}},{{end}}`{{$alias.Column $col.Name}}`: `{{$col.DBType}}`{{end}}{{"}"}}
+	_ = bytes.MinRead
+)
 
 // Random{{$alias.UpSingular}} creates a random models.{{$alias.UpSingular}}
 // It does not need to add relationships.
@@ -16,159 +18,73 @@ var Random{{$alias.UpSingular}} = func() (*models.{{$alias.UpSingular}}, error){
 	return o, err
 }
 
-{{range .Table.ToManyRelationships -}}
-{{- $ftable := $.Aliases.Table .ForeignTable -}}
-{{- $relAlias := $.Aliases.ManyRelationship .ForeignTable .Name .JoinTable .JoinLocalFKeyName -}}
-var {{$relAlias.Local}}Per{{$alias.UpSingular}} int = 1
-{{end -}}{{/* range tomany */}}
-
-var (
-	{{$alias.DownSingular}}ColumnsWithDefault    = []string{{"{"}}{{.Table.Columns | filterColumnsByDefault true | columnNames | stringMap .StringFuncs.quoteWrap | join ","}}{{"}"}}
-	{{$alias.DownSingular}}DBTypes = map[string]string{{"{"}}{{range $i, $col := .Table.Columns -}}{{- if ne $i 0}},{{end}}`{{$alias.Column $col.Name}}`: `{{$col.DBType}}`{{end}}{{"}"}}
-	_ = bytes.MinRead
-)
-
-func {{$alias.UpPlural}}({{if not .NoContext}}ctx context.Context, {{end}}exec boil.ContextExecutor, amount int) error {
-	for i := 0; i < amount; i++ {
-		err := {{$alias.UpSingular}}({{if not .NoContext}}ctx, {{end}}exec)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func {{$alias.UpSingular}}({{if not .NoContext}}ctx context.Context, {{end}}exec boil.ContextExecutor) error {
-	seeded := &filled{}
-
-	_, err := {{$alias.DownSingular}}WithRelationships({{if not .NoContext}}ctx, {{end}}exec, seeded, nil)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func {{$alias.DownSingular}}WithRelationships({{if not .NoContext}}ctx context.Context, {{end}}exec boil.ContextExecutor, seeded *filled, insertFunc rel{{$alias.UpSingular}}InsertOneFunc) (*models.{{$alias.UpSingular}}, error) {
-	if Random{{$alias.UpSingular}} == nil {
-		return nil, fmt.Errorf("Random{{$alias.UpSingular}}() is nil")
-	}
-	o, err := Random{{$alias.UpSingular}}()
-	if err != nil {
-		return o, fmt.Errorf("Unable to get Random{{$alias.UpSingular}}: %w", err)
-	}
-
-	if insertFunc != nil {
-		if err := insertFunc({{if not .NoContext}}ctx, {{end -}} exec, true, o); err != nil {
-			return o, fmt.Errorf("Unable to Insert {{$alias.UpSingular}} struct: %w", err)
-		}
-	} else {
-		if err := o.Insert({{if not .NoContext}}ctx, {{end -}} exec, boil.Infer()); err != nil {
-			return o, fmt.Errorf("Unable to Insert {{$alias.UpSingular}} struct: %w", err)
-		}
-	}
-
-	
-	return o, addRelationshipsTo{{$alias.UpSingular}}({{if not .NoContext}}ctx, {{end}}exec, seeded, o)
-}
-
-func {{$alias.DownPlural}}WithRelationships({{if not .NoContext}}ctx context.Context, {{end}}exec boil.ContextExecutor, seeded *filled, insertFunc rel{{$alias.UpSingular}}InsertManyFunc) (*models.{{$alias.UpSingular}}, error) {
-	if Random{{$alias.UpSingular}} == nil {
-		return nil, fmt.Errorf("Random{{$alias.UpSingular}}() is nil")
-	}
-	o, err := Random{{$alias.UpSingular}}()
-	if err != nil {
-		return o, fmt.Errorf("Unable to get Random{{$alias.UpSingular}}: %w", err)
-	}
-
-	if insertFunc != nil {
-		if err := insertFunc({{if not .NoContext}}ctx, {{end -}} exec, true, o); err != nil {
-			return o, fmt.Errorf("Unable to Insert {{$alias.UpSingular}} struct: %w", err)
-		}
-	} else {
-		if err := o.Insert({{if not .NoContext}}ctx, {{end -}} exec, boil.Infer()); err != nil {
-			return o, fmt.Errorf("Unable to Insert {{$alias.UpSingular}} struct: %w", err)
-		}
-	}
-
-	
-	return o, addRelationshipsTo{{$alias.UpSingular}}({{if not .NoContext}}ctx, {{end}}exec, seeded, o)
-}
-
-func addRelationshipsTo{{$alias.UpSingular}}({{if not .NoContext}}ctx context.Context, {{end}}exec boil.ContextExecutor, seeded *filled, o *models.{{$alias.UpSingular}}) error {
-	seeded.{{$alias.UpPlural}} = true
+func seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextExecutor) error {
+	fmt.Println("Adding {{$alias.UpPlural}}")
+	{{$alias.UpPlural}}ToAdd := Min{{$alias.UpPlural}}ToSeed
 
 	{{range .Table.FKeys -}}
-	{{- $ftable := $.Aliases.Table .ForeignTable -}}
-	{{- $relAlias := $alias.Relationship .Name -}}
-	if !seeded.{{$ftable.UpPlural}} {
-		fmt.Println("Setting {{$relAlias.Foreign}} on {{$alias.UpSingular}}")
-		_, err := {{$ftable.DownSingular}}WithRelationships({{if not $.NoContext}}ctx, {{end}}exec, seeded, o.Set{{$relAlias.Foreign}})
-		if err != nil {
-			return fmt.Errorf("Unable to get {{$ftable.DownSingular}}WithRelationships: %w", err)
-		}
+	{{ $ftable := $.Aliases.Table .ForeignTable -}}
+	{{$ftable.DownPlural}}, err := models.{{$ftable.UpPlural}}().All({{if not $.NoContext}}ctx, {{end}}exec)
+	if err != nil {
+		return fmt.Errorf("error getting {{$ftable.DownPlural}}: %w", err)
 	}
 	{{end}}
-
-	{{range .Table.ToOneRelationships -}}
-	{{- $ftable := $.Aliases.Table .ForeignTable -}}
-	{{- $relAlias := $ftable.Relationship .Name -}}
-	if !seeded.{{$ftable.UpPlural}} {
-		fmt.Println("Setting {{$relAlias.Local}} on {{$alias.UpSingular}}")
-		_, err := {{$ftable.DownSingular}}WithRelationships({{if not $.NoContext}}ctx, {{end}}exec, seeded, o.Set{{$relAlias.Local}})
-		if err != nil {
-			return fmt.Errorf("Unable to get {{$ftable.DownSingular}}WithRelationships: %w", err)
-		}
-	}
-	{{end}}
-
-	{{range .Table.ToManyRelationships -}}
-	{{- $ftable := $.Aliases.Table .ForeignTable -}}
-	{{- $relAlias := $.Aliases.ManyRelationship .ForeignTable .Name .JoinTable .JoinLocalFKeyName -}}
-
-	if !seeded.{{$ftable.UpPlural}} {
-		var err error
-		if Add{{$relAlias.Local}}To{{$alias.UpSingular}} != nil {
-			err = Add{{$relAlias.Local}}To{{$alias.UpSingular}}(ctx, exec, o, {{$relAlias.Local}}Per{{$alias.UpSingular}})
-		} else {
-			err = generateAdd{{$relAlias.Local}}To{{$alias.UpSingular}}Func(seeded.copy())(ctx, exec, o, {{$relAlias.Local}}Per{{$alias.UpSingular}})
-		}
-		if err != nil {
-			return fmt.Errorf("Unable to add {{$relAlias.Local}} To {{$alias.UpSingular}}: %w", err)
-		}
-	}
-
-	{{end}}{{/* range tomany */}}
 	
+
+	{{range $tableIn := $.Tables -}}
+	{{ $aliasIn := $.Aliases.Table $tableIn.Name -}}
+
+	{{range $rel := $tableIn.ToManyRelationships -}}
+	{{if and (not $rel.ToJoinTable) (eq $.Table.Name $rel.ForeignTable) }}
+
+	{{- $ftable := $.Aliases.Table $rel.ForeignTable -}}
+	{{- $relAlias := $.Aliases.ManyRelationship $rel.ForeignTable $rel.Name $rel.JoinTable $rel.JoinLocalFKeyName -}}
+    
+	if {{$relAlias.Local}}Per{{$aliasIn.UpSingular}} * len({{$aliasIn.DownPlural}}) > {{$alias.UpPlural}}ToAdd {
+		{{$alias.UpPlural}}ToAdd = {{$relAlias.Local}}Per{{$aliasIn.UpSingular}} * len({{$aliasIn.DownPlural}})
+	}
+
+	{{end}}{{/* if */}}
+
+
+	{{end -}}{{/* range tomany */}}
+	{{end -}}{{/* range tables */}}
+
+
+	for i := 0; i < {{$alias.UpPlural}}ToAdd; i++ {
+		// create model
+		o, err := Random{{$alias.UpSingular}}()
+		if err != nil {
+			return fmt.Errorf("unable to get Random{{$alias.UpSingular}}: %w", err)
+		}
+
+		{{range $fkey := .Table.FKeys -}}
+		{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}
+		{{- $usesPrimitives := usesPrimitives $.Tables $fkey.Table $fkey.Column $fkey.ForeignTable $fkey.ForeignColumn -}}
+
+		// set {{$ftable.DownSingular}}
+		{{$ftable.UpSingular}}Key := int(math.Mod(float64(i), float64(len({{$ftable.DownPlural}}))))
+		{{$ftable.DownSingular}} := {{$ftable.DownPlural}}[{{$ftable.UpSingular}}Key]
+
+		{{if $usesPrimitives -}}
+		o.{{$alias.Column $fkey.Column}} = {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}}
+		{{else -}}
+		queries.Assign(&o.{{$alias.Column $fkey.Column}}, {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}})
+		{{end -}}
+
+
+		{{end}}
+
+		// insert model
+		if err := o.Insert({{if not .NoContext}}ctx, {{end}}exec, boil.Infer()); err != nil {
+			return fmt.Errorf("unable to insert {{$alias.UpSingular}}: %w", err)
+		}
+	}
+
+	fmt.Println("Finished adding {{$alias.UpPlural}}")
 	return nil
 }
 
-{{range .Table.ToManyRelationships -}}
-{{- $ftable := $.Aliases.Table .ForeignTable -}}
-{{- $relAlias := $.Aliases.ManyRelationship .ForeignTable .Name .JoinTable .JoinLocalFKeyName -}}
-
-// Add{{$relAlias.Local}}To{{$alias.UpSingular}} creates multiple random models.{{$relAlias.Local}},
-// adds them to the given *models.{{$alias.UpSingular}}
-// and then INSERTS them into the DB
-// NOTE: The *models.{{$alias.UpSingular}} passed to this function would have already been inserted in the DB
-var Add{{$relAlias.Local}}To{{$alias.UpSingular}} add{{$relAlias.Local}}To{{$alias.UpSingular}}Func
-type add{{$relAlias.Local}}To{{$alias.UpSingular}}Func = func(ctx context.Context, exec boil.ContextExecutor, o *models.{{$alias.UpSingular}}, amount int) error
-
-func generateAdd{{$relAlias.Local}}To{{$alias.UpSingular}}Func(seeded *filled) add{{$relAlias.Local}}To{{$alias.UpSingular}}Func {
-	return func(ctx context.Context, exec boil.ContextExecutor, o *models.{{$alias.UpSingular}}, amount int) error {
-		fmt.Printf("Adding %d {{$relAlias.Local}} to {{$alias.UpSingular}}\n", {{$relAlias.Local}}Per{{$alias.UpSingular}})
-		for i := 0; i < {{$relAlias.Local}}Per{{$alias.UpSingular}}; i++ {
-			_, err := {{$ftable.DownPlural}}WithRelationships({{if not $.NoContext}}ctx, {{end}}exec, seeded.copy(), o.Add{{$relAlias.Local}})
-			if err != nil {
-				return fmt.Errorf("Unable to get {{$ftable.DownSingular}}WithRelationships: %w", err)
-			}
-		}
-		return nil
-	}
-}
-
-{{end}}{{/* range tomany */}}
 
 
 
@@ -178,6 +94,13 @@ func generateAdd{{$relAlias.Local}}To{{$alias.UpSingular}}Func(seeded *filled) a
 
 
 
+
+
+
+// These packages are needed in SOME models
+// This is to prevent errors in those that do not need it
+var _ = math.E
+var _ = queries.Query{}
 
 // This is to force strconv to be used. Without it, it causes an error because strconv is imported by ALL the drivers
 var _ = strconv.IntSize
