@@ -133,9 +133,13 @@ var MinRelsPerPilotLanguages = 1
 // Number of times to retry getting a unique relationship in many-to-many relationships
 var Retries = 3
 
-var RandomPilot func() *models.Pilot
-var RandomJet func() *models.Jet
-var RandomLanguage func() *models.Language
+var RandomPilot func() (*models.Pilot, error)
+var RandomJet func() (*models.Jet, error)
+var RandomLanguage func() (*models.Language, error)
+
+var AfterPilotAdded func(*models.Pilot) error
+var AfterJetAdded func(*models.Pilot) error
+var AfterLanguageAdded func(*models.Pilot) error
 ```
 
 ### `MinXXXToSeed`
@@ -175,22 +179,44 @@ The package has default `RandomXXX` functions that use `github.com/volatiletech/
 The `RandomXXX` functions do not need to add any relationships to the models.
 
 ```go
-seed.RandomPilot = func()*models.Pilot {
+seed.RandomPilot = func() (*models.Pilot, error) {
     // Build a random pilot
     // Do not worry about relationships those are auto generaeted by the seeder
     // check out github.com/Pallinder/go-randomdata
 }
 
-seed.RandomJet = func()*models.Jet {
+seed.RandomJet = func() (*models.Jet, error) {
     // Build a random jet
     // Do not worry about relationships those are auto generaeted by the seeder
     // check out github.com/Pallinder/go-randomdata
 }
 
-seed.RandomLanguage = func()*models.Language {
+seed.RandomLanguage = func() (*models.Language, error) {
     // Build a random language
     // Do not worry about relationships those are auto generaeted by the seeder
     // check out github.com/Pallinder/go-randomdata
+}
+```
+
+### `AfterXXXAdded`
+
+The package has default `AfterXXXAdded` functions that does nothing.
+
+If you'd like to perform any actions after a model is added to the database, you can overwrite this variable.
+
+For example, you may want to create files for image data added to the database.
+
+```go
+seed.AfterPilotAdded = func(*models.Pilot) error {
+  // Do something
+}
+
+seed.AfterJetAdded = func(*models.Jet) error {
+  // Do something
+}
+
+seed.AfterLanguageAdded = func(*models.Language) error {
+  // Do something
 }
 ```
 
