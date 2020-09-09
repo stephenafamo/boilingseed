@@ -18,9 +18,9 @@ var Random{{$alias.UpSingular}} = func() (*models.{{$alias.UpSingular}}, error){
 	return o, err
 }
 
-// After{{$alias.UpSingular}}Added is called after a models.{{$alias.UpSingular}}
-// is added. Can be set by an external package for better control over seeding
-var After{{$alias.UpSingular}}Added = func(*models.{{$alias.UpSingular}}) error {
+// After{{$alias.UpPlural}}Added is called after all {{$alias.UpPlural}} are added
+// Can be set by an external package for better control over seeding
+var After{{$alias.UpPlural}}Added = func(ctx context.Context) error {
 	return nil
 }
 
@@ -85,12 +85,12 @@ func seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextExecutor) err
 		if err := o.Insert({{if not .NoContext}}ctx, {{end}}exec, boil.Infer()); err != nil {
 			return fmt.Errorf("unable to insert {{$alias.UpSingular}}: %w", err)
 		}
-
-		// run afterAdd
-		if err := After{{$alias.UpSingular}}Added(o); err != nil {
-			return fmt.Errorf("error running AfterAdd {{$alias.UpSingular}}: %w", err)
-		}
 	}
+
+    // run afterAdd
+    if err := After{{$alias.UpPlural}}Added(ctx); err != nil {
+        return fmt.Errorf("error running After{{$alias.UpPlural}}Added: %w", err)
+    }
 
 	fmt.Println("Finished adding {{$alias.UpPlural}}")
 	return nil

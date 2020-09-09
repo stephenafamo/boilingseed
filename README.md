@@ -137,9 +137,9 @@ var RandomPilot func() (*models.Pilot, error)
 var RandomJet func() (*models.Jet, error)
 var RandomLanguage func() (*models.Language, error)
 
-var AfterPilotAdded func(*models.Pilot) error
-var AfterJetAdded func(*models.Pilot) error
-var AfterLanguageAdded func(*models.Pilot) error
+var AfterPilotsAdded func(ctx context.Context) error
+var AfterJetsAdded func(ctx context.Context) error
+var AfterLanguagesAdded func(ctx context.Context) error
 ```
 
 ### `MinXXXToSeed`
@@ -202,20 +202,18 @@ seed.RandomLanguage = func() (*models.Language, error) {
 
 The package has default `AfterXXXAdded` functions that does nothing.
 
-If you'd like to perform any actions after a model is added to the database, you can overwrite this variable.
-
-For example, you may want to create files for image data added to the database.
+If you'd like to perform any actions after all models of a specific table is added to the database, you can overwrite this variable.
 
 ```go
-seed.AfterPilotAdded = func(*models.Pilot) error {
+seed.AfterPilotsAdded = func(ctx context.Context) error {
   // Do something
 }
 
-seed.AfterJetAdded = func(*models.Jet) error {
+seed.AfterJetsAdded = func(ctx context.Context) error {
   // Do something
 }
 
-seed.AfterLanguageAdded = func(*models.Language) error {
+seed.AfterLanguagesAdded = func(ctx context.Context) error {
   // Do something
 }
 ```
