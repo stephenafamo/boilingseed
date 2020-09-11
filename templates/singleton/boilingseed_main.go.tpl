@@ -69,8 +69,13 @@ func Run(ctx context.Context, exec boil.ContextExecutor) {
 
 {{range $table := .Tables}}{{if $table.IsJoinTable -}}
 {{/* A Join table will have exactly 2 foreign keys */}}
-{{ $alias0 := $.Aliases.Table (index $table.FKeys 0).ForeignTable -}}
-{{ $alias1 := $.Aliases.Table (index $table.FKeys 1).ForeignTable -}}
+{{ $fkey0 := (index $table.FKeys 0) }}
+{{ $fkey1 := (index $table.FKeys 1) }}
+{{ $alias := $.Aliases.Table $table.Name -}}
+{{ $alias0 := $.Aliases.Table $fkey0.ForeignTable -}}
+{{ $alias1 := $.Aliases.Table $fkey1.ForeignTable -}}
+{{ $relAlias0 := $alias.Relationship $fkey0.Name -}}
+{{ $relAlias1 := $alias.Relationship $fkey1.Name -}}
 func seed{{titleCase $table.Name}}(ctx context.Context, exec boil.ContextExecutor) error {
 	fmt.Println("Adding {{titleCase $table.Name}}")
 	NoOfRels := MinRelsPer{{titleCase $table.Name}}
@@ -111,10 +116,31 @@ func seed{{titleCase $table.Name}}(ctx context.Context, exec boil.ContextExecuto
 				related = append(related, {{$alias1.DownPlural}}[index])
 			}
 
-			o.Add{{$alias1.UpPlural}}({{if not $.NoContext}}ctx, {{end}}exec, false, related...)
+			o.Add{{$relAlias0.Local}}({{if not $.NoContext}}ctx, {{end}}exec, false, related...)
 		}
+
 	case  len({{$alias1.DownPlural}}) <= len({{$alias0.DownPlural}}):
 		for i := 0; i < len({{$alias1.DownPlural}}); i++ {
+			o := {{$alias1.DownPlural}}[i]
+
+			relatedIndexes := map[int]struct{}{}
+			related := models.{{$alias0.UpSingular}}Slice{}
+
+			for i := 0; i < NoOfRels; i++ {
+				index := rand.Int() % len({{$alias0.DownPlural}})
+				_, alreadyIn := relatedIndexes[index]
+				retries := 0
+				
+				for alreadyIn && retries < Retries {
+					retries++
+					index = rand.Int() % len({{$alias0.DownPlural}})
+					 _, alreadyIn = relatedIndexes[index]
+				}
+				relatedIndexes[index] = struct{}{}
+				related = append(related, {{$alias0.DownPlural}}[index])
+			}
+
+			o.Add{{$relAlias1.Local}}({{if not $.NoContext}}ctx, {{end}}exec, false, related...)
 		}
 	}
 
