@@ -112,8 +112,11 @@ func seed{{titleCase $table.Name}}(ctx context.Context, exec boil.ContextExecuto
 					index = rand.Int() % len({{$alias1.DownPlural}})
 					 _, alreadyIn = relatedIndexes[index]
 				}
-				relatedIndexes[index] = struct{}{}
-				related = append(related, {{$alias1.DownPlural}}[index])
+
+                if !alreadyIn {
+                    relatedIndexes[index] = struct{}{}
+                    related = append(related, {{$alias1.DownPlural}}[index])
+                }
 			}
 
 			o.Add{{$relAlias0.Local}}({{if not $.NoContext}}ctx, {{end}}exec, false, related...)
@@ -136,8 +139,11 @@ func seed{{titleCase $table.Name}}(ctx context.Context, exec boil.ContextExecuto
 					index = rand.Int() % len({{$alias0.DownPlural}})
 					 _, alreadyIn = relatedIndexes[index]
 				}
-				relatedIndexes[index] = struct{}{}
-				related = append(related, {{$alias0.DownPlural}}[index])
+
+                if !alreadyIn {
+                    relatedIndexes[index] = struct{}{}
+                    related = append(related, {{$alias0.DownPlural}}[index])
+                }
 			}
 
 			o.Add{{$relAlias1.Local}}({{if not $.NoContext}}ctx, {{end}}exec, false, related...)
