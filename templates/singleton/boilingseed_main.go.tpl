@@ -26,7 +26,7 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
-func Run(ctx context.Context, exec boil.ContextExecutor) {
+func Run(ctx context.Context, exec boil.ContextExecutor) error {
 	var wg sync.WaitGroup
 
 	ctxMain, cancelMain := context.WithCancel(ctx)
@@ -39,10 +39,10 @@ func Run(ctx context.Context, exec boil.ContextExecutor) {
 	ctx{{titleCase $table.Name}}, cancel{{titleCase $table.Name}} := context.WithCancel(ctxMain)
 	{{end}}{{end -}}{{/* range tables */}}
 
-
+    errChan := make(chan error, {{len .Tables}})
 
 	{{range $table := .Tables -}}
-	{{ $alias := $.Aliases.Table $table.Name -}}
+	{{ $alias := $.Aliases.Table $table.Name }}
 	// Run{{$alias.UpPlural}}Seed()
 	wg.Add(1)
 	go func() {
@@ -54,17 +54,27 @@ func Run(ctx context.Context, exec boil.ContextExecutor) {
 		{{end}}
 		{{if not $table.IsJoinTable -}}
 		if err := seed{{$alias.UpPlural}}(ctx{{$alias.UpPlural}}, exec); err != nil {
-			panic(err)
+			errChan <- err
+			cancelMain()
 		}
 		{{else}}
 		if err := seed{{titleCase $table.Name}}(ctx{{titleCase $table.Name}}, exec); err != nil {
-			panic(err)
+			errChan <- err
+			cancelMain()
 		}
-		{{- end}}
+		{{- end -}}
 	}()
 	{{end}}{{/* range tables */}}
 
 	wg.Wait()
+
+	close(errChan)
+	err := <-errChan
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 {{range $table := .Tables}}{{if $table.IsJoinTable -}}
