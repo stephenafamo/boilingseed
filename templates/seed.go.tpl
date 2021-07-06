@@ -7,10 +7,30 @@ var (
 	_ = bytes.MinRead
 )
 
-// Random{{$alias.UpSingular}} creates a random models.{{$alias.UpSingular}}
-// It does not need to add relationships.
-// Can be set by an external package for better control over seeding
-var Random{{$alias.UpSingular}} = func() (*models.{{$alias.UpSingular}}, error){
+{{if .Table.FKeys}}
+func default{{$alias.UpSingular}}ForeignKeySetter(i int, o *models.{{$alias.UpSingular}}{{- range $fkey := .Table.FKeys -}}{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}, all{{$ftable.UpPlural}} models.{{$ftable.UpSingular}}Slice{{end}}) error {
+		{{range $fkey := .Table.FKeys -}}
+		{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}
+		{{- $usesPrimitives := usesPrimitives $.Tables $fkey.Table $fkey.Column $fkey.ForeignTable $fkey.ForeignColumn -}}
+
+		// set {{$ftable.DownSingular}}
+		{{$ftable.UpSingular}}Key := int(math.Mod(float64(i), float64(len(all{{$ftable.UpPlural}}))))
+		{{$ftable.DownSingular}} := all{{$ftable.UpPlural}}[{{$ftable.UpSingular}}Key]
+
+		{{if $usesPrimitives -}}
+		o.{{$alias.Column $fkey.Column}} = {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}}
+		{{else -}}
+		queries.Assign(&o.{{$alias.Column $fkey.Column}}, {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}})
+		{{end}}
+    {{end -}}
+
+    return nil
+}
+{{end}}
+
+// defaultRandom{{$alias.UpSingular}} creates a random model.{{$alias.UpSingular}}
+// Used when Random{{$alias.UpSingular}} is not set in the Seeder
+func defaultRandom{{$alias.UpSingular}}() (*models.{{$alias.UpSingular}}, error){
 	o := &models.{{$alias.UpSingular}}{}
 	seed := randomize.NewSeed()
 	err := randomize.Struct(seed, o, {{$alias.DownSingular}}DBTypes, true, {{$alias.DownSingular}}ColumnsWithDefault...)
@@ -18,15 +38,21 @@ var Random{{$alias.UpSingular}} = func() (*models.{{$alias.UpSingular}}, error){
 	return o, err
 }
 
-// After{{$alias.UpPlural}}Added is called after all {{$alias.UpPlural}} are added
-// Can be set by an external package for better control over seeding
-var After{{$alias.UpPlural}}Added = func(ctx context.Context) error {
-	return nil
-}
-
-func seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextExecutor) error {
+func (s Seeder) seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextExecutor) error {
 	fmt.Println("Adding {{$alias.UpPlural}}")
-	{{$alias.UpPlural}}ToAdd := Min{{$alias.UpPlural}}ToSeed
+	{{$alias.UpPlural}}ToAdd := s.Min{{$alias.UpPlural}}ToSeed
+
+  randomFunc := s.Random{{$alias.UpSingular}}
+  if randomFunc == nil {
+      randomFunc = defaultRandom{{$alias.UpSingular}}
+  }
+
+  {{if .Table.FKeys}}
+  fkFunc := s.{{$alias.UpSingular}}ForeignKeySetter
+  if fkFunc == nil {
+      fkFunc = default{{$alias.UpSingular}}ForeignKeySetter
+  }
+  {{end}}
 
 	{{range .Table.FKeys -}}
 	{{ $ftable := $.Aliases.Table .ForeignTable -}}
@@ -46,8 +72,8 @@ func seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextExecutor) err
 	{{- $ftable := $.Aliases.Table $rel.ForeignTable -}}
 	{{- $relAlias := $.Aliases.ManyRelationship $rel.ForeignTable $rel.Name $rel.JoinTable $rel.JoinLocalFKeyName -}}
     
-	if {{$relAlias.Local}}Per{{$aliasIn.UpSingular}} * len({{$aliasIn.DownPlural}}) > {{$alias.UpPlural}}ToAdd {
-		{{$alias.UpPlural}}ToAdd = {{$relAlias.Local}}Per{{$aliasIn.UpSingular}} * len({{$aliasIn.DownPlural}})
+	if s.{{$relAlias.Local}}Per{{$aliasIn.UpSingular}} * len({{$aliasIn.DownPlural}}) > {{$alias.UpPlural}}ToAdd {
+		{{$alias.UpPlural}}ToAdd = s.{{$relAlias.Local}}Per{{$aliasIn.UpSingular}} * len({{$aliasIn.DownPlural}})
 	}
 
 	{{end}}{{/* if */}}
@@ -59,27 +85,18 @@ func seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextExecutor) err
 
 	for i := 0; i < {{$alias.UpPlural}}ToAdd; i++ {
 		// create model
-		o, err := Random{{$alias.UpSingular}}()
+		o, err := randomFunc()
 		if err != nil {
-			return fmt.Errorf("unable to get Random{{$alias.UpSingular}}: %w", err)
+			return fmt.Errorf("unable to get Random {{$alias.UpSingular}}: %w", err)
 		}
 
-		{{range $fkey := .Table.FKeys -}}
-		{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}
-		{{- $usesPrimitives := usesPrimitives $.Tables $fkey.Table $fkey.Column $fkey.ForeignTable $fkey.ForeignColumn -}}
-
-		// set {{$ftable.DownSingular}}
-		{{$ftable.UpSingular}}Key := int(math.Mod(float64(i), float64(len({{$ftable.DownPlural}}))))
-		{{$ftable.DownSingular}} := {{$ftable.DownPlural}}[{{$ftable.UpSingular}}Key]
-
-		{{if $usesPrimitives -}}
-		o.{{$alias.Column $fkey.Column}} = {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}}
-		{{else -}}
-		queries.Assign(&o.{{$alias.Column $fkey.Column}}, {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}})
-		{{end -}}
-
-
-		{{end}}
+    {{if .Table.FKeys}}
+    // Set foreign keys
+    err = default{{$alias.UpSingular}}ForeignKeySetter(i, o{{- range $fkey := $.Table.FKeys -}}{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}, {{$ftable.DownPlural}}{{end}})
+		if err != nil {
+			return fmt.Errorf("unable to get set foreign keys for {{$alias.UpSingular}}: %w", err)
+		}
+    {{end}}{{/* if */}}
 
 		// insert model
 		if err := o.Insert({{if not .NoContext}}ctx, {{end}}exec, boil.Infer()); err != nil {
@@ -88,8 +105,10 @@ func seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextExecutor) err
 	}
 
     // run afterAdd
-    if err := After{{$alias.UpPlural}}Added(ctx); err != nil {
-        return fmt.Errorf("error running After{{$alias.UpPlural}}Added: %w", err)
+    if s.After{{$alias.UpPlural}}Added != nil {
+      if err := s.After{{$alias.UpPlural}}Added(ctx); err != nil {
+          return fmt.Errorf("error running After{{$alias.UpPlural}}Added: %w", err)
+      }
     }
 
 	fmt.Println("Finished adding {{$alias.UpPlural}}")
