@@ -83,18 +83,6 @@ CREATE TABLE pilot_languages (
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pkey PRIMARY KEY (pilot_id, language_id);
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pilots_fkey FOREIGN KEY (pilot_id) REFERENCES pilots(id);
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_languages_fkey FOREIGN KEY (language_id) REFERENCES languages(id);
-
--- Join table
-CREATE TABLE pilot_languages_2 (
-  pilot_id integer NOT NULL,
-  language_id integer NOT NULL,
-  name text NOT NULL
-);
-
--- Composite primary key
-ALTER TABLE pilot_languages_2 ADD CONSTRAINT pilot_language_2_pkey PRIMARY KEY (pilot_id, language_id);
-ALTER TABLE pilot_languages_2 ADD CONSTRAINT pilot_language_2_pilots_fkey FOREIGN KEY (pilot_id) REFERENCES pilots(id);
-ALTER TABLE pilot_languages_2 ADD CONSTRAINT pilot_language_2_languages_fkey FOREIGN KEY (language_id) REFERENCES languages(id);
 ```
 
 You can seed the entire database like this:
@@ -112,34 +100,63 @@ import (
 func main() {
     ctx := context.Background()
     db := getDB()
-    seed.Run(ctx, db)
+    seeder := seed.Seeder
+    seeder.MinJetsToSeed = 1
+    seeder.MinLanguagesToSeed = 1
+    seeder.MinPilotsToSeed = 1
+
+    err := seeder.Run(ctx, db)
+    if err != nil {
+      panic(err)
+    }
 }
 ```
 
 ## Controlling seeding
 
-The generated package will define the following variables. They can all be overwritten to control seeding:
+The generated package will define a Seeder struct whose fields control seeding.  
+The comments help understand what each field does.
 
 ```go
+type Seeder struct {
+	// The minimum number of Jets to seed
+	MinJetsToSeed int
+	// RandomJet creates a random models.Jet
+	// It does not need to add relationships.
+	// If one is not set, defaultRandomJet() is used
+	RandomJet func() (*models.Jet, error)
+	// AfterJetsAdded runs after all Jets are added
+	AfterJetsAdded func(ctx context.Context) error
+	// defaultJetForeignKeySetter() is used if this is not set
+	// setting this means that the xxxPerxxx settings cannot be guaranteed
+	JetForeignKeySetter func(i int, o *models.Jet, allPilots models.PilotSlice) error
 
-var MinJetsToSeed int = 1
-var MinLanguagesToSeed int = 1
-var MinPilotsToSeed int = 1
+	// The minimum number of Languages to seed
+	MinLanguagesToSeed int
+	// RandomLanguage creates a random models.Language
+	// It does not need to add relationships.
+	// If one is not set, defaultRandomLanguage() is used
+	RandomLanguage func() (*models.Language, error)
+	// AfterLanguagesAdded runs after all Languages are added
+	AfterLanguagesAdded func(ctx context.Context) error
 
-var JetsPerPilot int = 1
+	// The minimum number of PilotLanguages to seed
+	MinRelsPerPilotLanguages int
 
-var MinRelsPerPilotLanguages = 1
+	// The minimum number of Pilots to seed
+	MinPilotsToSeed int
+	// RandomPilot creates a random models.Pilot
+	// It does not need to add relationships.
+	// If one is not set, defaultRandomPilot() is used
+	RandomPilot func() (*models.Pilot, error)
+	// AfterPilotsAdded runs after all Pilots are added
+	AfterPilotsAdded func(ctx context.Context) error
 
-// Number of times to retry getting a unique relationship in many-to-many relationships
-var Retries = 3
+	JetsPerPilot int
 
-var RandomPilot func() (*models.Pilot, error)
-var RandomJet func() (*models.Jet, error)
-var RandomLanguage func() (*models.Language, error)
-
-var AfterPilotsAdded func(ctx context.Context) error
-var AfterJetsAdded func(ctx context.Context) error
-var AfterLanguagesAdded func(ctx context.Context) error
+	// Number of times to retry getting a unique relationship in many-to-many relationships
+	Retries int
+}
 ```
 
 ### `MinXXXToSeed`
@@ -149,49 +166,49 @@ The `MinXXXToSeed` variables are used to control how many of each model to seed.
 **NOTE:** The final amount seeded could be more than this because of other variables. For example, if **MinJetsToSeed** and **MinPilotsToSeed** are set to `3`, but **JetsPerPilot** is set to `5`, then the final number of Jets seeded will be 15 because each of the 3 pilots need 5 jets.
 
 ```go
-seed.MinJetsToSeed = 5
-seed.MinLanguagesToSeed = 4
-seed.MinPilotsToSeed = 3
+seeder.MinJetsToSeed = 5
+seeder.MinLanguagesToSeed = 4
+seeder.MinPilotsToSeed = 3
 ```
 
 ### `xxxPerXXX`
 
-The `xxxPerXXX` variables are used to control how many `one-to-many` relationships are added. For example, if you seed a single pliot, it will auto-seed jets related to that pilot. By default, that is 1, but you can change it like this:
+The `xxxPerXXX` fields are used to control how many `one-to-many` relationships are added. For example, if you seed a single pliot, it will auto-seed jets related to that pilot.
 
 ```go
-seed.JetsPerPilot = 2
+seeder.JetsPerPilot = 2
 ```
 
 ### `MinRelsPerXXX`
 
-The `MinRelsPerXXX` variables are used to control how many `many-to-many` relationships are added. In this example, it will **try** to give each Pilot *at least* 3 Languages and each Language *at least* 3 pilots.
+The `MinRelsPerXXX` fields are control how many `many-to-many` relationships are added. In this example, it will **try** to give each Pilot *at least* 3 Languages and each Language *at least* 3 pilots.
 
 Naturally, if there are more pilots than languages, each language will likely have more than 3 pilots.
 
 ```go
-seed.MinRelsPerPilotLanguages = 3
+seeder.MinRelsPerPilotLanguages = 3
 ```
 
 ### `RandomXXX`
 
-The package has default `RandomXXX` functions that use `github.com/volatiletech/randomize`. However, for better control you can set custom `RandomXXX` functions. A single function that randomly generates a model.
+The package has `defaultRandomXXX` functions that use `github.com/volatiletech/randomize`. However, for better control you can set custom `RandomXXX` functions. A single function that randomly generates a model.
 
 The `RandomXXX` functions do not need to add any relationships to the models.
 
 ```go
-seed.RandomPilot = func() (*models.Pilot, error) {
+seeder.RandomPilot = func() (*models.Pilot, error) {
     // Build a random pilot
     // Do not worry about relationships those are auto generaeted by the seeder
     // check out github.com/Pallinder/go-randomdata
 }
 
-seed.RandomJet = func() (*models.Jet, error) {
+seeder.RandomJet = func() (*models.Jet, error) {
     // Build a random jet
     // Do not worry about relationships those are auto generaeted by the seeder
     // check out github.com/Pallinder/go-randomdata
 }
 
-seed.RandomLanguage = func() (*models.Language, error) {
+seeder.RandomLanguage = func() (*models.Language, error) {
     // Build a random language
     // Do not worry about relationships those are auto generaeted by the seeder
     // check out github.com/Pallinder/go-randomdata
@@ -200,26 +217,37 @@ seed.RandomLanguage = func() (*models.Language, error) {
 
 ### `AfterXXXAdded`
 
-The package has default `AfterXXXAdded` functions that does nothing.
+The package has default `AfterXXXAdded` functions that do nothing.
 
-If you'd like to perform any actions after all models of a specific table is added to the database, you can overwrite this variable.
+If you'd like to perform any actions after all models of a specific table is added to the database, you can set this field.
 
 ```go
-seed.AfterPilotsAdded = func(ctx context.Context) error {
+seeder.AfterPilotsAdded = func(ctx context.Context) error {
   // Do something
 }
 
-seed.AfterJetsAdded = func(ctx context.Context) error {
+seeder.AfterJetsAdded = func(ctx context.Context) error {
   // Do something
 }
 
-seed.AfterLanguagesAdded = func(ctx context.Context) error {
+seeder.AfterLanguagesAdded = func(ctx context.Context) error {
   // Do something
+}
+```
+
+### `xxxForeignKeySetter`
+
+After a random model is generated, this function is called to set the foreign keys on the model.
+
+In most cases, you wouldn't have to touch this, the default functions evenly distribute relationships to related models.
+
+```go
+seeder.	JetForeignKeySetter func(i int, o *models.Jet, allPilots models.PilotSlice) error {
+    o.PilotID = 12345
+    return nil
 }
 ```
 
 ## Contributing
 
 This still needs some polishing, looking forward to pull requests!
-
-Before pushing, run `go generate` so we package the template files in our binary. This is done with [pkger](https://github.com/markbates/pkger).
