@@ -92,7 +92,7 @@ func (s Seeder) seed{{$alias.UpPlural}}(ctx context.Context, exec boil.ContextEx
 
     {{if .Table.FKeys}}
     // Set foreign keys
-    err = default{{$alias.UpSingular}}ForeignKeySetter(i, o{{- range $fkey := $.Table.FKeys -}}{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}, {{$ftable.DownPlural}}{{end}})
+    err = fkFunc(i, o{{- range $fkey := $.Table.FKeys -}}{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}, {{$ftable.DownPlural}}{{end}})
 		if err != nil {
 			return fmt.Errorf("unable to get set foreign keys for {{$alias.UpSingular}}: %w", err)
 		}
