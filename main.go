@@ -1,8 +1,10 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,12 +12,14 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/markbates/pkger"
 	flag "github.com/spf13/pflag"
 )
 
 //go:generate go install github.com/markbates/pkger/cmd/pkger
 //go:generate pkger
+
+//go:embed templates
+var templates embed.FS
 
 func main() {
 
@@ -74,7 +78,7 @@ func copyTemplates(dir string) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 0, ' ', tabwriter.Debug)
 	defer w.Flush()
 
-	return pkger.Walk("/templates", func(path string, info os.FileInfo, err error) error {
+	return fs.WalkDir(templates, ".", func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return fmt.Errorf("an error was passed to the walkFunc: %w", err)
 		}
@@ -83,10 +87,9 @@ func copyTemplates(dir string) error {
 			return nil
 		}
 
-		pathArr := strings.Split(path, ":")
-		relPath := strings.TrimPrefix(pathArr[len(pathArr)-1], "/templates/")
+		relPath := strings.TrimPrefix(path, "templates/")
 
-		tplFile, err := pkger.Open(path)
+		tplFile, err := templates.Open(path)
 		if err != nil {
 			return fmt.Errorf("error when opening template file: %w", err)
 		}
