@@ -306,7 +306,7 @@ func copyTemplates(dir string) error {
 func configureImports() importers.Collection {
 	imports := importers.NewDefaultImports()
 
-	imports.All.Standard = []string{`"fmt"`, `"bytes"`, `"math"`}
+	imports.All.Standard = []string{`"fmt"`, `"math"`}
 	imports.All.ThirdParty = []string{
 		fmt.Sprintf(`models "%s"`, modelsPkg),
 		`"github.com/volatiletech/sqlboiler/v4/boil"`,

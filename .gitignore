@@ -3,6 +3,4 @@ seed
 seeds
 seeder
 models
-types
-shared
 *sqlboiler.*
