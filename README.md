@@ -11,41 +11,65 @@ This is a really early release, so while it works (I use it for my projects), it
 * Generate your models. [Link](https://github.com/volatiletech/sqlboiler#initial-generation)
 * Install boilingseed: `go get github.com/stephenafamo/boilingseed`
 
-## Configuration
+## Usage
 
-The config file by default is expected to be at `./sqlboiler.seed.toml`, or pass the flag `-c` or `--config` to the tool when the time comes.
-
-In the configuration, you can duplicate your main sqlboiler config.
-
-**VERY IMPORTANT**: Add the following to your configuration
-
-```toml
-[imports.all]
-  standard = ['"fmt"', '"bytes"', '"math"']
-  third_party = ['"github.com/stephenafamo/boilingseed/models"', '"github.com/volatiletech/sqlboiler/v4/boil"', '"github.com/volatiletech/sqlboiler/v4/queries"', '"github.com/volatiletech/randomize"']
-
-[imports.singleton."boilingseed_main"]
-  standard = ['"fmt"', '"sync"', '"time"', '"context"', '"math/rand"']
-  third_party = ['"github.com/stephenafamo/boilingseed/models"', '"github.com/volatiletech/sqlboiler/v4/boil"']
-```
-
-Next, generate the seeds with:
+Generate the seeds with:
 
 ```shell
 boilingseed psql 
 ```
 
-The program accepts the following flags
+You can then seed the database like this:
 
-* `--config`: Configuration file path. DEFAULT: `sqlboiler.seed.toml`
-* `--output` or `-o`: The name of the folder to output to. DEFAULT: `seed`
-* `--pkgname` or `-p`: The name you wish to assign to your generated package. DEFAULT: `seed`
-* `--no-context`: Disable context.Context usage in the generated code. DEFAULT `false`
+```go
+package main
+
+import (
+    "context"
+    "database/sql"
+
+    "path/to/package/seed"
+)
+
+func main() {
+    ctx := context.Background()
+    db := getDB()
+    seeder := seed.Seeder
+    seeder.MinJetsToSeed = 1
+    seeder.MinLanguagesToSeed = 1
+    seeder.MinPilotsToSeed = 1
+
+    err := seeder.Run(ctx, db)
+    if err != nil {
+      panic(err)
+    }
+}
+```
+
+## Configuration
+
+By defualt the sqlboiler configuration files are used: `sqlboiler.toml` or `json` or `yaml`.
+
+Apart from the standard configuration for SQLBoiler, the only other added configuration is the package name of the generated SQLBoiler models. By default the models subdirectory of the current go module is used. 
+
+The program accepts these flags to overwrite any configuration.
+
+* `--sqlboiler-models`: The package of your generated models. Needed to import them properly in the seeder. DEFAULT: `current/go/module/models`.
+* `--config`: Configuration file path. DEFAULT: `sqlboiler.toml`
+* `--output` or `-o`: The name of the folder to output to. DEFAULT: `seeds`
+* `--pkgname` or `-p`: The name you wish to assign to your generated package. DEFAULT: `seeds`
+* `--no-context`: Were the models generated with no context?. DEFAULT `false`
 * `--wipe`: Delete the output folder (rm -rf) before generation to ensure sanity. DEFAULT `false`
+* `--version`: Print the version
+* `debug` or `d`: Debug mode prints stack traces on error. DEFAULT `false`
 
-## Usage
+They can also be set in the config file, or as environment variables
 
-Most examples in this section will be demonstrated using the following Postgres schema, structs and variables:
+**NOTE:** If you have customized the output folder or pkgname in your `sqlboiler` config file and you are passing the same file to `boilingseed`, you should overwrite them using the `-o` and `p` flags respectively.
+
+## Controlling seeding
+
+Most examples will be demonstrated using the following Postgres schema, structs and variables:
 
 ```sql
 CREATE TABLE pilots (
@@ -85,34 +109,7 @@ ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pilots_fkey FOREIGN KE
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_languages_fkey FOREIGN KEY (language_id) REFERENCES languages(id);
 ```
 
-You can seed the entire database like this:
 
-```go
-package main
-
-import (
-    "context"
-    "database/sql"
-
-    "path/to/package/seed"
-)
-
-func main() {
-    ctx := context.Background()
-    db := getDB()
-    seeder := seed.Seeder
-    seeder.MinJetsToSeed = 1
-    seeder.MinLanguagesToSeed = 1
-    seeder.MinPilotsToSeed = 1
-
-    err := seeder.Run(ctx, db)
-    if err != nil {
-      panic(err)
-    }
-}
-```
-
-## Controlling seeding
 
 The generated package will define a Seeder struct whose fields control seeding.  
 The comments help understand what each field does.

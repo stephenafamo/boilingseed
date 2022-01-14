@@ -175,6 +175,8 @@ func (s Seeder) seed{{titleCase $table.Name}}(ctx context.Context, exec boil.Con
 {{end}}{{end -}}{{/* range tables */}}
 
 
+
+
 // These packages are needed in SOME models
 // This is to prevent errors in those that do not need it
 var _ fmt.Scanner
