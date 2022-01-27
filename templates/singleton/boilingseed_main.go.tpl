@@ -1,6 +1,9 @@
 type Seeder struct {
     {{range $table := .Tables}}{{ $alias := $.Aliases.Table $table.Name -}}
-    {{if not $table.IsJoinTable -}}
+    {{- if $table.IsJoinTable }}
+        // The minimum number of {{titleCase $table.Name}} to seed
+        MinRelsPer{{titleCase $table.Name}} int
+    {{ else if not $table.IsView -}}
         // The minimum number of {{$alias.UpPlural}} to seed
         Min{{$alias.UpPlural}}ToSeed int
         // Random{{$alias.UpSingular}} creates a random models.{{$alias.UpSingular}}
@@ -14,9 +17,6 @@ type Seeder struct {
         // setting this means that the xxxPerxxx settings cannot be guaranteed
         {{$alias.UpSingular}}ForeignKeySetter func(i int, o *models.{{$alias.UpSingular}}{{- range $fkey := $table.FKeys -}}{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}, all{{$ftable.UpPlural}} models.{{$ftable.UpSingular}}Slice{{end}}) error
         {{end}}
-    {{- else }}
-        // The minimum number of {{titleCase $table.Name}} to seed
-        MinRelsPer{{titleCase $table.Name}} int
     {{- end}}
 
     {{end}}{{/* range tables */}}
@@ -42,16 +42,16 @@ func (s Seeder) Run(ctx context.Context, exec boil.ContextExecutor) error {
 	ctxMain, cancelMain := context.WithCancel(ctx)
 	defer cancelMain()
 	
-	{{range $table := .Tables}}{{if not $table.IsJoinTable -}}
+	{{range $table := .Tables}}{{if $table.IsJoinTable -}}
+	ctx{{titleCase $table.Name}}, cancel{{titleCase $table.Name}} := context.WithCancel(ctxMain)
+	{{else if not $table.IsView -}}
 	{{ $alias := $.Aliases.Table $table.Name -}}
 	ctx{{$alias.UpPlural}}, cancel{{$alias.UpPlural}} := context.WithCancel(ctxMain)
-	{{else -}}
-	ctx{{titleCase $table.Name}}, cancel{{titleCase $table.Name}} := context.WithCancel(ctxMain)
 	{{end}}{{end -}}{{/* range tables */}}
 
     errChan := make(chan error, {{len .Tables}})
 
-	{{range $table := .Tables -}}
+	{{range $table := .Tables }}{{if not $table.IsView -}}
 	{{ $alias := $.Aliases.Table $table.Name }}
 	// Run{{$alias.UpPlural}}Seed()
 	wg.Add(1)
@@ -74,6 +74,7 @@ func (s Seeder) Run(ctx context.Context, exec boil.ContextExecutor) error {
 		}
 		{{- end -}}
 	}()
+	{{end}}{{/* range not IsView */}}
 	{{end}}{{/* range tables */}}
 
 	wg.Wait()

@@ -1,3 +1,4 @@
+{{- if not .Table.IsView -}}
 {{ $alias := .Aliases.Table .Table.Name -}}
 
 var (
@@ -139,3 +140,4 @@ type {{$alias.DownSingular}} struct {
 	{{- $alias.Column $column.Name}} {{$column.Type}}
 	{{end -}}
 }
+{{- end -}}
