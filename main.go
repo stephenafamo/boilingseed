@@ -43,7 +43,7 @@ func initConfig() {
 	}
 
 	var err error
-	viper.SetConfigName("boilingseed")
+	viper.SetConfigName("sqlboiler")
 
 	configHome := os.Getenv("XDG_CONFIG_HOME")
 	homePath := os.Getenv("HOME")
