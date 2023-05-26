@@ -9,18 +9,20 @@ var (
 {{if .Table.FKeys}}
 func default{{$alias.UpSingular}}ForeignKeySetter(i int, o *models.{{$alias.UpSingular}}{{- range $fkey := .Table.FKeys -}}{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}, all{{$ftable.UpPlural}} models.{{$ftable.UpSingular}}Slice{{end}}) error {
 		{{range $fkey := .Table.FKeys -}}
-		{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}
-		{{- $usesPrimitives := usesPrimitives $.Tables $fkey.Table $fkey.Column $fkey.ForeignTable $fkey.ForeignColumn -}}
+			{{ $ftable := $.Aliases.Table $fkey.ForeignTable -}}
+			{{- $usesPrimitives := usesPrimitives $.Tables $fkey.Table $fkey.Column $fkey.ForeignTable $fkey.ForeignColumn -}}
 
-		// set {{$ftable.DownSingular}}
-		{{$ftable.UpSingular}}Key := int(math.Mod(float64(i), float64(len(all{{$ftable.UpPlural}}))))
-		{{$ftable.DownSingular}} := all{{$ftable.UpPlural}}[{{$ftable.UpSingular}}Key]
+			if len(all{{$ftable.UpPlural}}) > 0 {
+				// set {{$ftable.DownSingular}}
+				{{$ftable.UpSingular}}Key := int(math.Mod(float64(i), float64(len(all{{$ftable.UpPlural}}))))
+				{{$ftable.DownSingular}} := all{{$ftable.UpPlural}}[{{$ftable.UpSingular}}Key]
 
-		{{if $usesPrimitives -}}
-		o.{{$alias.Column $fkey.Column}} = {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}}
-		{{else -}}
-		queries.Assign(&o.{{$alias.Column $fkey.Column}}, {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}})
-		{{end}}
+				{{if $usesPrimitives -}}
+				o.{{$alias.Column $fkey.Column}} = {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}}
+				{{else -}}
+				queries.Assign(&o.{{$alias.Column $fkey.Column}}, {{$ftable.DownSingular}}.{{$ftable.Column $fkey.ForeignColumn}})
+				{{end}}
+			}
     {{end -}}
 
     return nil
