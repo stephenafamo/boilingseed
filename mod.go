@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -19,7 +19,7 @@ func goModInfo() (*modfile.File, error) {
 		return nil, fmt.Errorf("cannot find main module: %w", err)
 	}
 
-	data, err := ioutil.ReadFile(goModPath)
+	data, err := os.ReadFile(goModPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read main go.mod file: %w", err)
 	}
