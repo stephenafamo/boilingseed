@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -156,8 +155,8 @@ func preRun(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("could not register driver: %w", err)
 	}
 
-	// Create the directior
-	tempTemplatesDir, err = ioutil.TempDir("", "boilingseed")
+	// Create the directory
+	tempTemplatesDir, err = os.MkdirTemp("", "boilingseed")
 	if err != nil {
 		return fmt.Errorf("could not create temp directory: %w", err)
 	}
