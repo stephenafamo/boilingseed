@@ -10,11 +10,11 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/aarondl/sqlboiler/v4/boilingcore"
+	"github.com/aarondl/sqlboiler/v4/drivers"
+	"github.com/aarondl/sqlboiler/v4/importers"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/volatiletech/sqlboiler/v4/boilingcore"
-	"github.com/volatiletech/sqlboiler/v4/drivers"
-	"github.com/volatiletech/sqlboiler/v4/importers"
 )
 
 //go:embed templates
@@ -293,15 +293,15 @@ func configureImports() importers.Collection {
 	imports.All.Standard = []string{`"fmt"`, `"math"`}
 	imports.All.ThirdParty = []string{
 		fmt.Sprintf(`models "%s"`, modelsPkg),
-		`"github.com/volatiletech/sqlboiler/v4/boil"`,
-		`"github.com/volatiletech/sqlboiler/v4/queries"`,
-		`"github.com/volatiletech/randomize"`,
+		`"github.com/aarondl/sqlboiler/v4/boil"`,
+		`"github.com/aarondl/sqlboiler/v4/queries"`,
+		`"github.com/aarondl/randomize"`,
 	}
 	imports.Singleton["boilingseed_main"] = importers.Set{
 		Standard: []string{`"fmt"`, `"sync"`, `"time"`, `"context"`, `"math/rand"`},
 		ThirdParty: []string{
 			fmt.Sprintf(`models "%s"`, modelsPkg),
-			`"github.com/volatiletech/sqlboiler/v4/boil"`,
+			`"github.com/aarondl/sqlboiler/v4/boil"`,
 		},
 	}
 

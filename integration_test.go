@@ -138,7 +138,7 @@ func (s *IntegrationTestSuite) Setup(t *testing.T) error {
 	s.binPath = filepath.Join(s.tempDir, "boilingseed")
 
 	// Create project directory
-	if err := os.MkdirAll(s.projectDir, 0755); err != nil {
+	if err := os.MkdirAll(s.projectDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create project directory: %w", err)
 	}
 
@@ -262,7 +262,7 @@ func (s *IntegrationTestSuite) TestProjectStructure(t *testing.T) {
 	// Create sqlboiler config
 	configContent := fmt.Sprintf(sqlBoilerConfig, s.dbPath)
 	configPath := filepath.Join(s.projectDir, "sqlboiler.toml")
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("Failed to create config file: %v", err)
 	}
 
@@ -279,11 +279,11 @@ func (s *IntegrationTestSuite) TestProjectStructure(t *testing.T) {
 
 func (s *IntegrationTestSuite) TestSQLBoilerGeneration(t *testing.T) {
 	// Add sqlboiler dependencies
-	if err := s.runCommand("go", "get", "github.com/volatiletech/sqlboiler/v4"); err != nil {
+	if err := s.runCommand("go", "get", "github.com/aarondl/sqlboiler/v4"); err != nil {
 		t.Fatalf("Failed to get sqlboiler dependency: %v", err)
 	}
 
-	if err := s.runCommand("go", "get", "github.com/volatiletech/sqlboiler/v4/drivers/sqlboiler-sqlite3"); err != nil {
+	if err := s.runCommand("go", "get", "github.com/aarondl/sqlboiler/v4/drivers/sqlboiler-sqlite3"); err != nil {
 		t.Fatalf("Failed to get sqlite driver: %v", err)
 	}
 
@@ -352,7 +352,7 @@ func (s *IntegrationTestSuite) TestBoilingSeedGeneration(t *testing.T) {
 func (s *IntegrationTestSuite) TestGeneratedCodeCompilation(t *testing.T) {
 	// Add required dependencies for seeds
 	dependencies := []string{
-		"github.com/volatiletech/randomize",
+		"github.com/aarondl/randomize",
 		"github.com/lib/pq", // for database drivers in tests
 	}
 
@@ -401,7 +401,7 @@ func main() {
 `
 
 	testPath := filepath.Join(s.projectDir, "test_seeder.go")
-	if err := os.WriteFile(testPath, []byte(testProgram), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte(testProgram), 0o644); err != nil {
 		t.Fatalf("Failed to create test program: %v", err)
 	}
 
@@ -425,7 +425,7 @@ import (
 	_ "modernc.org/sqlite"
 	"testproject/seeds"
 	"testproject/models"
-	"github.com/volatiletech/sqlboiler/v4/boil"
+	"github.com/aarondl/sqlboiler/v4/boil"
 )
 
 func main() {
@@ -522,12 +522,12 @@ func main() {
 `
 
 	testPath := filepath.Join(s.projectDir, "run_seeder.go")
-	if err := os.WriteFile(testPath, []byte(testProgram), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte(testProgram), 0o644); err != nil {
 		t.Fatalf("Failed to create seeder test program: %v", err)
 	}
 
 	// Get additional dependencies
-	if err := s.runCommand("go", "get", "github.com/volatiletech/null/v8"); err != nil {
+	if err := s.runCommand("go", "get", "github.com/aarondl/null/v8"); err != nil {
 		t.Errorf("Failed to get null dependency: %v", err)
 	}
 
@@ -577,7 +577,7 @@ import (
 	_ "modernc.org/sqlite"
 	"testproject/seeds"
 	"testproject/models"
-	"github.com/volatiletech/null/v8"
+	"github.com/aarondl/null/v8"
 )
 
 func main() {
@@ -663,7 +663,7 @@ func randomInt() int {
 `
 
 	testPath := filepath.Join(s.projectDir, "custom_seeder.go")
-	if err := os.WriteFile(testPath, []byte(testProgram), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte(testProgram), 0o644); err != nil {
 		t.Fatalf("Failed to create custom seeder test: %v", err)
 	}
 
@@ -700,7 +700,7 @@ import (
 	_ "modernc.org/sqlite"
 	"testproject/seeds"
 	"testproject/models"
-	"github.com/volatiletech/null/v8"
+	"github.com/aarondl/null/v8"
 )
 
 func main() {
@@ -801,7 +801,7 @@ func main() {
 `
 
 	testPath := filepath.Join(s.projectDir, "fk_demo.go")
-	if err := os.WriteFile(testPath, []byte(testProgram), 0644); err != nil {
+	if err := os.WriteFile(testPath, []byte(testProgram), 0o644); err != nil {
 		t.Fatalf("Failed to create FK test: %v", err)
 	}
 
@@ -866,7 +866,7 @@ func (s *IntegrationTestSuite) TestConfigurationOptions(t *testing.T) {
 	// Test wipe option
 	// First create a dummy file in the directory
 	dummyFile := filepath.Join(customOutputDir, "dummy.txt")
-	if err := os.WriteFile(dummyFile, []byte("dummy"), 0644); err != nil {
+	if err := os.WriteFile(dummyFile, []byte("dummy"), 0o644); err != nil {
 		t.Fatalf("Failed to create dummy file: %v", err)
 	}
 

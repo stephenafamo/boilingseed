@@ -1,15 +1,15 @@
 # BoilingSeed
 
-This is a CLI tool that helps generate database seeding helpers with [`sqlboiler`](https://github.com/volatiletech/sqlboiler).
+This is a CLI tool that helps generate database seeding helpers with [`sqlboiler`](https://github.com/aarondl/sqlboiler).
 
 This is a really early release, so while it works (I use it for my projects), it is not super stable YET.
 
 ## Installation
 
-* Install [`sqlboiler`](https://github.com/volatiletech/sqlboiler)
-* Install your database driver for [`sqlboiler`](https://github.com/volatiletech/sqlboiler#supported-databases).
-* Generate your models. [Link](https://github.com/volatiletech/sqlboiler#initial-generation)
-* Install boilingseed: `go get github.com/stephenafamo/boilingseed`
+- Install [`sqlboiler`](https://github.com/aarondl/sqlboiler)
+- Install your database driver for [`sqlboiler`](https://github.com/aarondl/sqlboiler#supported-databases).
+- Generate your models. [Link](https://github.com/aarondl/sqlboiler#initial-generation)
+- Install boilingseed: `go get github.com/stephenafamo/boilingseed`
 
 ## Usage
 
@@ -54,14 +54,14 @@ Apart from the standard configuration for SQLBoiler, the only other added config
 
 The program accepts these flags to overwrite any configuration.
 
-* `--sqlboiler-models`: The package of your generated models. Needed to import them properly in the seeder. DEFAULT: `current/go/module/models`.
-* `--config`: Configuration file path. DEFAULT: `sqlboiler.toml`
-* `--output` or `-o`: The name of the folder to output to. DEFAULT: `seeds`
-* `--pkgname` or `-p`: The name you wish to assign to your generated package. DEFAULT: `seeds`
-* `--no-context`: Were the models generated with no context?. DEFAULT `false`
-* `--wipe`: Delete the output folder (rm -rf) before generation to ensure sanity. DEFAULT `false`
-* `--version`: Print the version
-* `debug` or `d`: Debug mode prints stack traces on error. DEFAULT `false`
+- `--sqlboiler-models`: The package of your generated models. Needed to import them properly in the seeder. DEFAULT: `current/go/module/models`.
+- `--config`: Configuration file path. DEFAULT: `sqlboiler.toml`
+- `--output` or `-o`: The name of the folder to output to. DEFAULT: `seeds`
+- `--pkgname` or `-p`: The name you wish to assign to your generated package. DEFAULT: `seeds`
+- `--no-context`: Were the models generated with no context?. DEFAULT `false`
+- `--wipe`: Delete the output folder (rm -rf) before generation to ensure sanity. DEFAULT `false`
+- `--version`: Print the version
+- `debug` or `d`: Debug mode prints stack traces on error. DEFAULT `false`
 
 They can also be set in the config file, or as environment variables
 
@@ -108,8 +108,6 @@ ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pkey PRIMARY KEY (pilo
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_pilots_fkey FOREIGN KEY (pilot_id) REFERENCES pilots(id);
 ALTER TABLE pilot_languages ADD CONSTRAINT pilot_language_languages_fkey FOREIGN KEY (language_id) REFERENCES languages(id);
 ```
-
-
 
 The generated package will define a Seeder struct whose fields control seeding.
 The comments help understand what each field does.
@@ -178,7 +176,7 @@ seeder.JetsPerPilot = 2
 
 ### `MinRelsPerXXX`
 
-The `MinRelsPerXXX` fields are control how many `many-to-many` relationships are added. In this example, it will **try** to give each Pilot *at least* 3 Languages and each Language *at least* 3 pilots.
+The `MinRelsPerXXX` fields are control how many `many-to-many` relationships are added. In this example, it will **try** to give each Pilot _at least_ 3 Languages and each Language _at least_ 3 pilots.
 
 Naturally, if there are more pilots than languages, each language will likely have more than 3 pilots.
 
@@ -188,7 +186,7 @@ seeder.MinRelsPerPilotLanguages = 3
 
 ### `RandomXXX`
 
-The package has `defaultRandomXXX` functions that use `github.com/volatiletech/randomize`. However, for better control you can set custom `RandomXXX` functions. A single function that randomly generates a model.
+The package has `defaultRandomXXX` functions that use `github.com/aarondl/randomize`. However, for better control you can set custom `RandomXXX` functions. A single function that randomly generates a model.
 
 The `RandomXXX` functions do not need to add any relationships to the models.
 
@@ -322,9 +320,10 @@ CREATE TABLE book_tags (
 The integration tests require:
 
 1. **SQLBoiler** - Must be installed and available in your PATH
+
    ```bash
-   go install github.com/volatiletech/sqlboiler/v4@latest
-   go install github.com/volatiletech/sqlboiler/v4/drivers/sqlboiler-sqlite3@latest
+   go install github.com/aarondl/sqlboiler/v4@latest
+   go install github.com/aarondl/sqlboiler/v4/drivers/sqlboiler-sqlite3@latest
    ```
 
 2. **Go environment** - The tests create temporary Go modules and build executables
@@ -334,6 +333,7 @@ The integration tests require:
 ### Test Output
 
 The integration tests provide detailed output showing:
+
 - Database setup and schema creation
 - SQLBoiler model generation
 - BoilingSeed seeder generation
@@ -342,6 +342,7 @@ The integration tests provide detailed output showing:
 - Foreign key relationship validation
 
 Example successful test output:
+
 ```
 === RUN   TestBoilingSeedIntegration
 === RUN   TestBoilingSeedIntegration/DatabaseSetup
